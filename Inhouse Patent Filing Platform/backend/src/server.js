@@ -1,3 +1,4 @@
+
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -17,10 +18,6 @@ const app = express();
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`INHOUSE Backend running on port ${PORT}`);
-});
-
 /*
  * ============================================================
  * DIRECTORIES
@@ -37,93 +34,50 @@ const documentsDirectory = path.join(
   "documents"
 );
 
-fs.mkdirSync(
-  uploadsDirectory,
-  {
-    recursive: true,
-  }
-);
+fs.mkdirSync(uploadsDirectory, {
+  recursive: true,
+});
 
-fs.mkdirSync(
-  documentsDirectory,
-  {
-    recursive: true,
-  }
-);
+fs.mkdirSync(documentsDirectory, {
+  recursive: true,
+});
 
 /*
  * ============================================================
- * CORS
+ * CORS CONFIGURATION
  * ============================================================
  */
 
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "https://inhouse-frontend-lxbu.onrender.com",
 ];
 
-/*
- * Add frontend URL from .env if available.
- */
-
+// Allow an additional frontend URL from environment variables.
 if (
   process.env.FRONTEND_URL &&
-  !allowedOrigins.includes(
-    process.env.FRONTEND_URL
-  )
+  !allowedOrigins.includes(process.env.FRONTEND_URL)
 ) {
-  allowedOrigins.push(
-    process.env.FRONTEND_URL
-  );
+  allowedOrigins.push(process.env.FRONTEND_URL);
 }
 
 app.use(
   cors({
-    origin: (
-      origin,
-      callback
-    ) => {
-      /*
-       * Allow requests without an Origin.
-       *
-       * This allows:
-       * - Postman
-       * - curl
-       * - server-to-server requests
-       */
-
+    origin: (origin, callback) => {
+      // Allow requests without an Origin (Postman, curl, etc.).
       if (!origin) {
-        return callback(
-          null,
-          true
-        );
+        return callback(null, true);
       }
 
-      /*
-       * Allow known frontend origins.
-       */
-
-      if (
-        allowedOrigins.includes(
-          origin
-        )
-      ) {
-        return callback(
-          null,
-          true
-        );
+      // Allow only approved frontend origins.
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
       }
 
-      console.log(
-        "CORS blocked origin:",
-        origin
-      );
+      console.log("CORS blocked origin:", origin);
 
-      return callback(
-        new Error(
-          "Not allowed by CORS"
-        )
-      );
+      return callback(new Error("Not allowed by CORS"));
     },
 
     methods: [
@@ -171,23 +125,11 @@ app.use(
  * ============================================================
  * STATIC UPLOADS
  * ============================================================
- *
- * Patent drawings/previews can be accessed from:
- *
- * /uploads/...
- *
- * Protected documents should continue to use:
- *
- * /api/documents/:id/download
- *
- * ============================================================
  */
 
 app.use(
   "/uploads",
-  express.static(
-    uploadsDirectory
-  )
+  express.static(uploadsDirectory)
 );
 
 /*
@@ -196,42 +138,21 @@ app.use(
  * ============================================================
  */
 
-app.get(
-  "/api/health",
-  (
-    req,
-    res
-  ) => {
-    return res.status(200).json({
-      success: true,
-      service: "Inhouse Patent Filing System API",
-      status: "running",
-    });
-  }
-);
+app.get("/api/health", (req, res) => {
+  return res.status(200).json({
+    success: true,
+    service: "Inhouse Patent Filing System API",
+    status: "running",
+  });
+});
 
 /*
  * ============================================================
  * AUTHENTICATION ROUTES
  * ============================================================
- *
- * POST /api/auth/register
- * POST /api/auth/login
- * POST /api/auth/admin-login
- * GET  /api/auth/me
- * GET  /api/auth/verify
- *
- * JWT is handled inside:
- *
- * backend/src/routes/auth.js
- *
- * ============================================================
  */
 
-app.use(
-  "/api/auth",
-  auth
-);
+app.use("/api/auth", auth);
 
 /*
  * ============================================================
@@ -239,10 +160,7 @@ app.use(
  * ============================================================
  */
 
-app.use(
-  "/api/patents",
-  patents
-);
+app.use("/api/patents", patents);
 
 /*
  * ============================================================
@@ -250,10 +168,7 @@ app.use(
  * ============================================================
  */
 
-app.use(
-  "/api/admin",
-  admin
-);
+app.use("/api/admin", admin);
 
 /*
  * ============================================================
@@ -261,10 +176,7 @@ app.use(
  * ============================================================
  */
 
-app.use(
-  "/api/documents",
-  documentRoutes
-);
+app.use("/api/documents", documentRoutes);
 
 /*
  * ============================================================
@@ -272,20 +184,13 @@ app.use(
  * ============================================================
  */
 
-app.use(
-  (
-    req,
-    res
-  ) => {
-    return res.status(404).json({
-      success: false,
-      message:
-        "API endpoint not found.",
-      path:
-        req.originalUrl,
-    });
-  }
-);
+app.use((req, res) => {
+  return res.status(404).json({
+    success: false,
+    message: "API endpoint not found.",
+    path: req.originalUrl,
+  });
+});
 
 /*
  * ============================================================
@@ -293,51 +198,25 @@ app.use(
  * ============================================================
  */
 
-app.use(
-  (
-    error,
-    req,
-    res,
-    next
-  ) => {
-    console.error(
-      "Server error:",
-      error
-    );
+app.use((error, req, res, next) => {
+  console.error("Server error:", error);
 
-    /*
-     * CORS error
-     */
-
-    if (
-      error &&
-      error.message &&
-      error.message.includes(
-        "CORS"
-      )
-    ) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Request blocked by CORS policy.",
-      });
-    }
-
-    /*
-     * Generic server error
-     */
-
-    return res.status(
-      error.status ||
-        500
-    ).json({
+  if (
+    error &&
+    error.message &&
+    error.message.includes("CORS")
+  ) {
+    return res.status(403).json({
       success: false,
-      message:
-        error.message ||
-        "Internal server error.",
+      message: "Request blocked by CORS policy.",
     });
   }
-);
+
+  return res.status(error.status || 500).json({
+    success: false,
+    message: error.message || "Internal server error.",
+  });
+});
 
 /*
  * ============================================================
@@ -347,80 +226,33 @@ app.use(
 
 async function startServer() {
   try {
-    /*
-     * Connect MongoDB first.
-     */
-
+    // Connect MongoDB before accepting requests.
     await db();
 
-    /*
-     * Start Express server.
-     */
+    console.log("MongoDB connected successfully.");
 
-    app.listen(
-      PORT,
-      "127.0.0.1",
-      () => {
-        console.log("");
+    // Start Express only once.
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log("");
+      console.log("==========================================");
+      console.log("   INHOUSE PATENT FILING SYSTEM");
+      console.log("==========================================");
 
-        console.log(
-          "=========================================="
-        );
+      console.log(`Backend running on port ${PORT}`);
+      console.log(`Health: /api/health`);
+      console.log(`Auth: /api/auth`);
+      console.log(`Patents: /api/patents`);
+      console.log(`Admin: /api/admin`);
+      console.log(`Documents: /api/documents`);
 
-        console.log(
-          "   INHOUSE PATENT FILING SYSTEM - BACKEND API"
-        );
-
-        console.log(
-          "=========================================="
-        );
-
-        console.log(
-          `API: http://127.0.0.1:${PORT}`
-        );
-
-        console.log(
-          `Health: http://127.0.0.1:${PORT}/api/health`
-        );
-
-        console.log(
-          `Auth: http://127.0.0.1:${PORT}/api/auth`
-        );
-
-        console.log(
-          `Patents: http://127.0.0.1:${PORT}/api/patents`
-        );
-
-        console.log(
-          `Admin: http://127.0.0.1:${PORT}/api/admin`
-        );
-
-        console.log(
-          `Documents: http://127.0.0.1:${PORT}/api/documents`
-        );
-
-        console.log(
-          "=========================================="
-        );
-
-        console.log("");
-      }
-    );
+      console.log("==========================================");
+      console.log("");
+    });
   } catch (error) {
-    console.error(
-      "Database connection failed:",
-      error
-    );
-
+    console.error("Database connection failed:", error);
     process.exit(1);
   }
 }
-
-/*
- * ============================================================
- * START
- * ============================================================
- */
 
 startServer();
 
