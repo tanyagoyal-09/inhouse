@@ -1841,7 +1841,7 @@ async function findChromeExecutable() {
     process.env.CHROME_PATH
   ].filter(Boolean);
 
-  // Check explicitly configured Chrome paths first.
+  // Check explicitly configured Chrome paths.
   for (const candidate of candidates) {
     try {
       if (fs.existsSync(candidate)) {
@@ -1853,27 +1853,30 @@ async function findChromeExecutable() {
         "Configured Chrome path does not exist:",
         candidate
       );
-
     } catch (error) {
       console.warn(
-        "Unable to check configured Chrome path:",
+        "Unable to check Chrome path:",
         candidate,
         error.message
       );
     }
   }
 
-  // Check the browser installed and managed by Puppeteer.
+  // Get the actual Chrome path from Puppeteer.
   try {
-    const managedPath =
-      puppeteer.executablePath();
+    const managedPath = await puppeteer.executablePath();
+
+    console.log(
+      "Puppeteer Chrome path:",
+      managedPath
+    );
 
     if (
       managedPath &&
       fs.existsSync(managedPath)
     ) {
       console.log(
-        "Puppeteer-managed Chrome found at:",
+        "Puppeteer-managed Chrome found:",
         managedPath
       );
 
@@ -1881,21 +1884,18 @@ async function findChromeExecutable() {
     }
 
     console.error(
-      "Puppeteer Chrome executable does not exist:",
-      managedPath || "(no path returned)"
+      "Chrome executable does not exist:",
+      managedPath
     );
-
   } catch (error) {
-
     console.error(
-      "Unable to resolve Puppeteer Chrome executable:",
+      "Unable to get Puppeteer Chrome path:",
       error.message
     );
-
   }
 
   throw new Error(
-    "Chrome executable not found. On Render, install it during the build with: npx puppeteer browsers install chrome"
+    "Chrome executable not found. Check Puppeteer Chrome installation on Render."
   );
 }
 
