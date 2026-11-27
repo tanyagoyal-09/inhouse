@@ -1,0 +1,30 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Generated uploads
+backend/uploads/
+
+# Generated PDFs
+backend/*.pdf
+backend/**/*.pdf
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build files
+frontend/dist/
+frontend/build/
