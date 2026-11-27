@@ -179,16 +179,6 @@ function fileToDataUrl(filePath) {
         absolutePath
       );
 
-    /*
-     * IMPORTANT:
-     * Use normal string concatenation here.
-     *
-     * This avoids the template-string syntax error
-     * that occurred previously around:
-     *
-     * data:${mime};base64,...
-     */
-
     return (
       "data:" +
       mime +
@@ -281,7 +271,6 @@ function buildClaims(claims) {
     `;
   }
 
-
   return claims
     .map(
       (claim, index) => {
@@ -299,7 +288,6 @@ function buildClaims(claims) {
           clean(
             claim?.dependsOn
           );
-
 
         return `
           <div class="claim">
@@ -333,7 +321,6 @@ function buildClaims(claims) {
 
             </div>
 
-
             <div class="claim-text">
               ${text(claim?.text)}
             </div>
@@ -361,7 +348,6 @@ function resolveDrawingPath(
     return "";
   }
 
-
   if (drawing.filePath) {
 
     return path.isAbsolute(
@@ -374,7 +360,6 @@ function resolveDrawingPath(
         );
   }
 
-
   if (drawing.fileName) {
 
     return path.resolve(
@@ -383,7 +368,6 @@ function resolveDrawingPath(
       drawing.fileName
     );
   }
-
 
   return "";
 }
@@ -408,7 +392,6 @@ function buildDrawings(
     `;
   }
 
-
   return drawings
     .map(
       (drawing, index) => {
@@ -417,18 +400,15 @@ function buildDrawings(
           drawing?.figureNumber ??
           index + 1;
 
-
         const drawingPath =
           resolveDrawingPath(
             drawing
           );
 
-
         const imageData =
           fileToDataUrl(
             drawingPath
           );
-
 
         return `
           <div class="drawing">
@@ -451,7 +431,6 @@ function buildDrawings(
                 `
             }
 
-
             <div class="figure-caption">
 
               <strong>
@@ -459,7 +438,6 @@ function buildDrawings(
                   figureNumber
                 )}
               </strong>
-
 
               ${
                 clean(
@@ -474,7 +452,6 @@ function buildDrawings(
                   `
                   : ""
               }
-
 
               ${
                 clean(
@@ -597,7 +574,6 @@ function buildHtml(
 <title>
   ${escapeHtml(title)}
 </title>
-
 
 <style>
 
@@ -1860,100 +1836,67 @@ ${section(
    ============================================================ */
 
 async function findChromeExecutable() {
-
   const candidates = [
-
     process.env.PUPPETEER_EXECUTABLE_PATH,
-
-    process.env.CHROME_PATH,
-
-
-    path.join(
-      process.env.LOCALAPPDATA || "",
-      "Google",
-      "Chrome",
-      "Application",
-      "chrome.exe"
-    ),
-
-
-    path.join(
-      process.env.PROGRAMFILES || "",
-      "Google",
-      "Chrome",
-      "Application",
-      "chrome.exe"
-    ),
-
-
-    path.join(
-      process.env["PROGRAMFILES(X86)"] || "",
-      "Google",
-      "Chrome",
-      "Application",
-      "chrome.exe"
-    )
-
+    process.env.CHROME_PATH
   ].filter(Boolean);
 
-
-  for (
-    const candidate
-    of candidates
-  ) {
-
+  // Check explicitly configured Chrome paths first.
+  for (const candidate of candidates) {
     try {
-
-      if (
-        fs.existsSync(candidate)
-      ) {
-
+      if (fs.existsSync(candidate)) {
+        console.log("Chrome found at:", candidate);
         return candidate;
-
       }
 
-    } catch (_) {
+      console.warn(
+        "Configured Chrome path does not exist:",
+        candidate
+      );
 
-      /*
-       * Ignore this candidate
-       * and continue.
-       */
-
+    } catch (error) {
+      console.warn(
+        "Unable to check configured Chrome path:",
+        candidate,
+        error.message
+      );
     }
-
   }
 
-
-  /*
-   * Puppeteer-managed Chrome
-   */
-
+  // Check the browser installed and managed by Puppeteer.
   try {
-
     const managedPath =
       puppeteer.executablePath();
-
 
     if (
       managedPath &&
       fs.existsSync(managedPath)
     ) {
+      console.log(
+        "Puppeteer-managed Chrome found at:",
+        managedPath
+      );
 
       return managedPath;
-
     }
+
+    console.error(
+      "Puppeteer Chrome executable does not exist:",
+      managedPath || "(no path returned)"
+    );
 
   } catch (error) {
 
-    console.warn(
-      "Unable to locate Puppeteer Chrome:",
+    console.error(
+      "Unable to resolve Puppeteer Chrome executable:",
       error.message
     );
 
   }
 
-
-  return undefined;
+  throw new Error(
+    "Chrome executable not found. On Render, install it during the build with: npx puppeteer browsers install chrome"
+  );
 }
 
 
@@ -2051,9 +1994,8 @@ async function generate(
 
 
     console.log(
-      "Puppeteer Chrome:",
-      executablePath ||
-      "Puppeteer default"
+      "Puppeteer Chrome executable:",
+      executablePath
     );
 
 
