@@ -1,31 +1,22 @@
+
 const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
 
 /*
- * ============================================================
- * PatentFlow - SRMS Patent PDF Generator
- * ============================================================
- *
- * PDF engine:
- *   Puppeteer + Chrome
- *
- * Logo:
- *   backend/assets/srms-logo.png
- *
- * Dynamic content:
- *   Patent data received from patents.js
- *
- * IMPORTANT:
- *   This file only controls PDF generation and formatting.
- *   It does NOT change the patent data stored in MongoDB.
- * ============================================================
- */
+============================================================
+ INHOUSE - PATENT FILING SYSTEM
+ SRMS PATENT PDF GENERATOR
+============================================================
+ PDF Engine: Puppeteer + Chrome
+ Logo: backend/assets/srms-logo.png
+============================================================
+*/
 
 
 /* ============================================================
    HTML ESCAPING
-   ============================================================ */
+============================================================ */
 
 function escapeHtml(value) {
   if (value === null || value === undefined) {
@@ -43,7 +34,7 @@ function escapeHtml(value) {
 
 /* ============================================================
    BASIC TEXT HELPERS
-   ============================================================ */
+============================================================ */
 
 function clean(value) {
   if (value === null || value === undefined) {
@@ -56,34 +47,23 @@ function clean(value) {
 
 function text(value, fallback = "Not provided.") {
   const valueClean = clean(value);
-
-  return escapeHtml(
-    valueClean || fallback
-  );
+  return escapeHtml(valueClean || fallback);
 }
 
 
 /* ============================================================
    ARRAY TO TEXT
-   ============================================================ */
+============================================================ */
 
-function arrayText(
-  value,
-  fallback = "Not provided."
-) {
+function arrayText(value, fallback = "Not provided.") {
   if (Array.isArray(value)) {
     const parts = value
       .map((item) => {
-        if (
-          item === null ||
-          item === undefined
-        ) {
+        if (item === null || item === undefined) {
           return "";
         }
 
-        if (
-          typeof item === "object"
-        ) {
+        if (typeof item === "object") {
           return clean(
             item.name ||
             item.text ||
@@ -97,28 +77,20 @@ function arrayText(
       .filter(Boolean);
 
     return escapeHtml(
-      parts.length
-        ? parts.join(", ")
-        : fallback
+      parts.length ? parts.join(", ") : fallback
     );
   }
 
-  return text(
-    value,
-    fallback
-  );
+  return text(value, fallback);
 }
 
 
 /* ============================================================
    MIME TYPE
-   ============================================================ */
+============================================================ */
 
 function mimeFromExtension(filePath) {
-  const extension =
-    path
-      .extname(filePath || "")
-      .toLowerCase();
+  const extension = path.extname(filePath || "").toLowerCase();
 
   const mimeTypes = {
     ".png": "image/png",
@@ -129,16 +101,13 @@ function mimeFromExtension(filePath) {
     ".svg": "image/svg+xml"
   };
 
-  return (
-    mimeTypes[extension] ||
-    "application/octet-stream"
-  );
+  return mimeTypes[extension] || "application/octet-stream";
 }
 
 
 /* ============================================================
-   FILE -> DATA URL
-   ============================================================ */
+   FILE TO DATA URL
+============================================================ */
 
 function fileToDataUrl(filePath) {
   try {
@@ -146,48 +115,26 @@ function fileToDataUrl(filePath) {
       return null;
     }
 
-    const absolutePath =
-      path.isAbsolute(filePath)
-        ? filePath
-        : path.resolve(filePath);
+    const absolutePath = path.isAbsolute(filePath)
+      ? filePath
+      : path.resolve(filePath);
 
     if (!fs.existsSync(absolutePath)) {
-      console.warn(
-        "PDF file not found:",
-        absolutePath
-      );
-
+      console.warn("PDF file not found:", absolutePath);
       return null;
     }
 
-    const buffer =
-      fs.readFileSync(
-        absolutePath
-      );
+    const buffer = fs.readFileSync(absolutePath);
 
     if (!buffer.length) {
-      console.warn(
-        "PDF file is empty:",
-        absolutePath
-      );
-
+      console.warn("PDF file is empty:", absolutePath);
       return null;
     }
 
-    const mime =
-      mimeFromExtension(
-        absolutePath
-      );
+    const mime = mimeFromExtension(absolutePath);
 
-    return (
-      "data:" +
-      mime +
-      ";base64," +
-      buffer.toString("base64")
-    );
-
+    return `data:${mime};base64,${buffer.toString("base64")}`;
   } catch (error) {
-
     console.error(
       "Unable to convert file to data URL:",
       error.message
@@ -200,31 +147,19 @@ function fileToDataUrl(filePath) {
 
 /* ============================================================
    SECTION
-   ============================================================ */
+============================================================ */
 
-function section(
-  title,
-  body,
-  options = {}
-) {
-  const pageBreak =
-    options.pageBreak
-      ? "page-break-before"
-      : "";
+function section(title, body, options = {}) {
+  const pageBreak = options.pageBreak
+    ? "page-break-before"
+    : "";
 
   return `
-    <section
-      class="section ${pageBreak}"
-    >
-
-      <h2>
-        ${escapeHtml(title)}
-      </h2>
-
+    <section class="section ${pageBreak}">
+      <h2>${escapeHtml(title)}</h2>
       <div class="section-body">
         ${body}
       </div>
-
     </section>
   `;
 }
@@ -232,15 +167,11 @@ function section(
 
 /* ============================================================
    PARAGRAPH FIELD
-   ============================================================ */
+============================================================ */
 
-function paragraph(
-  label,
-  value
-) {
+function paragraph(label, value) {
   return `
     <div class="field">
-
       <div class="field-label">
         ${escapeHtml(label)}
       </div>
@@ -248,7 +179,6 @@ function paragraph(
       <div class="field-value">
         ${text(value)}
       </div>
-
     </div>
   `;
 }
@@ -256,14 +186,10 @@ function paragraph(
 
 /* ============================================================
    CLAIMS
-   ============================================================ */
+============================================================ */
 
 function buildClaims(claims) {
-
-  if (
-    !Array.isArray(claims) ||
-    claims.length === 0
-  ) {
+  if (!Array.isArray(claims) || claims.length === 0) {
     return `
       <p class="muted">
         No claims have been provided.
@@ -272,96 +198,69 @@ function buildClaims(claims) {
   }
 
   return claims
-    .map(
-      (claim, index) => {
+    .map((claim, index) => {
+      const number = claim?.number ?? index + 1;
+      const type = clean(claim?.type);
+      const dependsOn = clean(claim?.dependsOn);
 
-        const number =
-          claim?.number ??
-          index + 1;
+      return `
+        <div class="claim">
 
-        const type =
-          clean(
-            claim?.type
-          );
+          <div class="claim-heading">
 
-        const dependsOn =
-          clean(
-            claim?.dependsOn
-          );
+            <span class="claim-number">
+              ${escapeHtml(number)}.
+            </span>
 
-        return `
-          <div class="claim">
+            ${
+              type
+                ? `
+                  <span class="claim-type">
+                    [${escapeHtml(type)}]
+                  </span>
+                `
+                : ""
+            }
 
-            <div class="claim-heading">
-
-              <span class="claim-number">
-                ${escapeHtml(number)}.
-              </span>
-
-              ${
-                type
-                  ? `
-                    <span class="claim-type">
-                      [${escapeHtml(type)}]
-                    </span>
-                  `
-                  : ""
-              }
-
-              ${
-                dependsOn
-                  ? `
-                    <span class="depends">
-                      Depends on Claim
-                      ${escapeHtml(dependsOn)}
-                    </span>
-                  `
-                  : ""
-              }
-
-            </div>
-
-            <div class="claim-text">
-              ${text(claim?.text)}
-            </div>
+            ${
+              dependsOn
+                ? `
+                  <span class="depends">
+                    Depends on Claim ${escapeHtml(dependsOn)}
+                  </span>
+                `
+                : ""
+            }
 
           </div>
-        `;
-      }
-    )
+
+          <div class="claim-text">
+            ${text(claim?.text)}
+          </div>
+
+        </div>
+      `;
+    })
     .join("");
 }
 
 
 /* ============================================================
    DRAWING PATH
-   ============================================================ */
+============================================================ */
 
-function resolveDrawingPath(
-  drawing
-) {
-
-  if (
-    !drawing ||
-    typeof drawing !== "object"
-  ) {
+function resolveDrawingPath(drawing) {
+  if (!drawing || typeof drawing !== "object") {
     return "";
   }
 
   if (drawing.filePath) {
-
-    return path.isAbsolute(
-      drawing.filePath
-    )
+    return path.isAbsolute(drawing.filePath)
       ? drawing.filePath
-      : path.resolve(
-          process.cwd(),
-          drawing.filePath
-        );
+      : path.resolve(process.cwd(), drawing.filePath);
   }
 
   if (drawing.fileName) {
-
     return path.resolve(
       process.cwd(),
       "uploads",
@@ -375,16 +274,10 @@ function resolveDrawingPath(
 
 /* ============================================================
    DRAWINGS
-   ============================================================ */
+============================================================ */
 
-function buildDrawings(
-  drawings
-) {
-
-  if (
-    !Array.isArray(drawings) ||
-    drawings.length === 0
-  ) {
+function buildDrawings(drawings) {
+  if (!Array.isArray(drawings) || drawings.length === 0) {
     return `
       <p class="muted">
         No technical drawings have been provided.
@@ -393,1004 +286,487 @@ function buildDrawings(
   }
 
   return drawings
-    .map(
-      (drawing, index) => {
+    .map((drawing, index) => {
+      const figureNumber = drawing?.figureNumber ?? index + 1;
 
-        const figureNumber =
-          drawing?.figureNumber ??
-          index + 1;
+      const drawingPath = resolveDrawingPath(drawing);
+      const imageData = fileToDataUrl(drawingPath);
 
-        const drawingPath =
-          resolveDrawingPath(
-            drawing
-          );
+      return `
+        <div class="drawing">
 
-        const imageData =
-          fileToDataUrl(
-            drawingPath
-          );
+          ${
+            imageData
+              ? `
+                <img
+                  class="drawing-image"
+                  src="${imageData}"
+                  alt="Figure ${escapeHtml(figureNumber)}"
+                />
+              `
+              : `
+                <div class="image-missing">
+                  Drawing image unavailable
+                </div>
+              `
+          }
 
-        return `
-          <div class="drawing">
+          <div class="figure-caption">
+
+            <strong>
+              FIG. ${escapeHtml(figureNumber)}
+            </strong>
 
             ${
-              imageData
+              clean(drawing?.description)
                 ? `
-                  <img
-                    class="drawing-image"
-                    src="${imageData}"
-                    alt="Figure ${escapeHtml(
-                      figureNumber
-                    )}"
-                  />
-                `
-                : `
-                  <div class="image-missing">
-                    Drawing image unavailable
+                  <div>
+                    ${escapeHtml(drawing.description)}
                   </div>
                 `
+                : ""
             }
 
-            <div class="figure-caption">
-
-              <strong>
-                FIG. ${escapeHtml(
-                  figureNumber
-                )}
-              </strong>
-
-              ${
-                clean(
-                  drawing?.description
-                )
-                  ? `
-                    <div>
-                      ${escapeHtml(
-                        drawing.description
-                      )}
-                    </div>
-                  `
-                  : ""
-              }
-
-              ${
-                clean(
-                  drawing?.referenceNumbers
-                )
-                  ? `
-                    <div class="reference">
-                      Reference numbers:
-                      ${escapeHtml(
-                        drawing.referenceNumbers
-                      )}
-                    </div>
-                  `
-                  : ""
-              }
-
-            </div>
+            ${
+              clean(drawing?.referenceNumbers)
+                ? `
+                  <div class="reference">
+                    Reference numbers:
+                    ${escapeHtml(drawing.referenceNumbers)}
+                  </div>
+                `
+                : ""
+            }
 
           </div>
-        `;
-      }
-    )
+
+        </div>
+      `;
+    })
     .join("");
 }
 
 
 /* ============================================================
    BUILD COMPLETE HTML
-   ============================================================ */
+============================================================ */
 
-function buildHtml(
-  patent,
-  logoData
-) {
-
-  /*
-   * Applicant
-   */
+function buildHtml(patent, logoData) {
 
   const applicantName =
-    clean(
-      patent?.applicantName
-    ) ||
+    clean(patent?.applicantName) ||
     (
       patent?.applicantId &&
-      typeof patent.applicantId ===
-        "object"
-        ? clean(
-            patent.applicantId.name
-          )
+      typeof patent.applicantId === "object"
+        ? clean(patent.applicantId.name)
         : ""
     ) ||
     "Not provided.";
-
-
-  /*
-   * Applicant email
-   */
 
   const applicantEmail =
-    clean(
-      patent?.applicantEmail
-    ) ||
+    clean(patent?.applicantEmail) ||
     (
       patent?.applicantId &&
-      typeof patent.applicantId ===
-        "object"
-        ? clean(
-            patent.applicantId.email
-          )
+      typeof patent.applicantId === "object"
+        ? clean(patent.applicantId.email)
         : ""
     ) ||
     "Not provided.";
 
-
-  /*
-   * Patent title
-   */
-
   const title =
-    clean(
-      patent?.title
-    ) ||
+    clean(patent?.title) ||
     "Untitled Patent Application";
 
-
-  /*
-   * Logo
-   */
-
-  const logoMarkup =
-    logoData
-      ? `
-        <img
-          class="srms-logo"
-          src="${logoData}"
-          alt="SRMS"
-        />
-      `
-      : `
-        <div class="logo-placeholder">
-          SRMS
-        </div>
-      `;
-
-
-  /*
-   * HTML
-   */
+  const logoMarkup = logoData
+    ? `
+      <img
+        class="srms-logo"
+        src="${logoData}"
+        alt="SRMS"
+      />
+    `
+    : `
+      <div class="logo-placeholder">
+        SRMS
+      </div>
+    `;
 
   return `
 <!DOCTYPE html>
-
 <html>
-
 <head>
 
 <meta charset="UTF-8">
 
-<title>
-  ${escapeHtml(title)}
-</title>
+<title>${escapeHtml(title)}</title>
 
 <style>
 
-/* ============================================================
-   PAGE
-   ============================================================ */
-
 @page {
-
   size: A4;
-
-  margin:
-    25mm
-    18mm
-    22mm
-    18mm;
-
+  margin: 25mm 18mm 22mm 18mm;
 }
-
-
-/* ============================================================
-   GLOBAL
-   ============================================================ */
 
 * {
   box-sizing: border-box;
 }
 
-
 html,
 body {
-
   margin: 0;
-
   padding: 0;
-
   background: #ffffff;
-
 }
-
 
 body {
-
   color: #111111;
-
-  font-family:
-    "Times New Roman",
-    Times,
-    serif;
-
+  font-family: "Times New Roman", Times, serif;
   font-size: 11pt;
-
   line-height: 1.55;
-
 }
-
-
-/* ============================================================
-   DOCUMENT
-   ============================================================ */
 
 .document {
-
   width: 100%;
-
 }
-
-
-/* ============================================================
-   SRMS HEADER
-   ============================================================ */
 
 .institution-header {
-
   width: 100%;
-
-  border-bottom:
-    1.5px solid
-    #333333;
-
+  border-bottom: 1.5px solid #333333;
   padding-bottom: 6px;
-
   margin-bottom: 15px;
-
 }
-
 
 .srms-logo {
-
   display: block;
-
   width: 100%;
-
   max-width: 174mm;
-
   height: auto;
-
   max-height: 25mm;
-
   object-fit: contain;
-
-  object-position:
-    left
-    center;
-
+  object-position: left center;
 }
-
 
 .logo-placeholder {
-
   height: 20mm;
-
   display: flex;
-
   align-items: center;
-
   justify-content: center;
-
-  border:
-    1px solid
-    #777777;
-
-  font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
-
+  border: 1px solid #777777;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 20pt;
-
   font-weight: bold;
-
 }
-
 
 .institution-subtitle {
-
   text-align: center;
-
-  font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
-
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 8.5pt;
-
   font-weight: bold;
-
   letter-spacing: .4px;
-
   margin-top: 3px;
-
 }
-
-
-/* ============================================================
-   COVER PAGE
-   ============================================================ */
 
 .cover {
-
   min-height: 245mm;
-
   page-break-after: always;
-
 }
-
 
 .title-block {
-
   text-align: center;
-
-  margin:
-    18mm
-    0
-    12mm
-    0;
-
+  margin: 18mm 0 12mm 0;
 }
-
 
 .document-heading {
-
-  font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
-
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 13pt;
-
   font-weight: bold;
-
   letter-spacing: .5px;
-
   text-transform: uppercase;
-
   margin-bottom: 12px;
-
 }
-
 
 .patent-title {
-
-  font-family:
-    "Times New Roman",
-    Times,
-    serif;
-
+  font-family: "Times New Roman", Times, serif;
   font-size: 17pt;
-
   line-height: 1.35;
-
   font-weight: bold;
-
   text-transform: uppercase;
-
   max-width: 160mm;
-
-  margin:
-    0
-    auto;
-
+  margin: 0 auto;
+  overflow-wrap: anywhere;
 }
-
 
 .title-rule {
-
   width: 70mm;
-
-  margin:
-    9mm
-    auto;
-
-  border-top:
-    1px solid
-    #333333;
-
+  margin: 9mm auto;
+  border-top: 1px solid #333333;
 }
-
 
 .cover-details {
-
   width: 135mm;
-
-  margin:
-    0
-    auto;
-
-  border-collapse:
-    collapse;
-
+  margin: 0 auto;
+  border-collapse: collapse;
   font-size: 10.5pt;
-
 }
-
 
 .cover-details td {
-
-  padding:
-    4px
-    6px;
-
+  padding: 4px 6px;
   vertical-align: top;
-
+  overflow-wrap: anywhere;
 }
-
 
 .cover-details td:first-child {
-
   width: 38%;
-
   font-weight: bold;
-
 }
-
 
 .cover-note {
-
   margin-top: 20mm;
-
   text-align: center;
-
   font-size: 9pt;
-
 }
-
-
-/* ============================================================
-   SECTIONS
-   ============================================================ */
 
 .section {
-
-  margin:
-    0
-    0
-    13px
-    0;
-
+  margin: 0 0 13px 0;
 }
-
 
 .section.page-break-before {
-
   page-break-before: always;
-
 }
-
 
 .section h2 {
-
-  font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
-
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 12.5pt;
-
   line-height: 1.3;
-
   font-weight: bold;
-
-  margin:
-    0
-    0
-    8px
-    0;
-
+  margin: 0 0 8px 0;
   padding-bottom: 4px;
-
-  border-bottom:
-    1px solid
-    #222222;
-
+  border-bottom: 1px solid #222222;
   page-break-after: avoid;
-
 }
-
 
 .section-body {
-
   text-align: justify;
-
 }
-
-
-/* ============================================================
-   FIELD
-   ============================================================ */
 
 .field {
-
-  margin:
-    0
-    0
-    10px
-    0;
-
+  margin: 0 0 10px 0;
   page-break-inside: avoid;
-
 }
-
 
 .field-label {
-
   font-weight: bold;
-
   margin-bottom: 3px;
-
 }
-
 
 .field-value {
-
   white-space: pre-wrap;
-
   overflow-wrap: anywhere;
-
   text-align: justify;
-
 }
-
-
-/* ============================================================
-   METADATA TABLE
-   ============================================================ */
 
 .metadata {
-
   width: 100%;
-
-  border-collapse:
-    collapse;
-
-  margin:
-    2px
-    0
-    12px
-    0;
-
+  border-collapse: collapse;
+  margin: 2px 0 12px 0;
   font-size: 10.5pt;
-
 }
-
 
 .metadata tr {
-
   page-break-inside: avoid;
-
 }
-
 
 .metadata td {
-
-  border:
-    1px solid
-    #555555;
-
-  padding:
-    6px
-    7px;
-
+  border: 1px solid #555555;
+  padding: 6px 7px;
   vertical-align: top;
-
+  overflow-wrap: anywhere;
 }
-
 
 .metadata td:first-child {
-
   width: 30%;
-
   font-weight: bold;
-
 }
-
-
-/* ============================================================
-   CLAIMS
-   ============================================================ */
 
 .claims-intro {
-
   margin-bottom: 10px;
-
 }
-
 
 .claim {
-
-  margin:
-    0
-    0
-    13px
-    0;
-
+  margin: 0 0 13px 0;
   page-break-inside: avoid;
-
   text-align: justify;
-
 }
-
 
 .claim-heading {
-
   font-weight: bold;
-
   margin-bottom: 4px;
-
 }
-
 
 .claim-number {
-
   margin-right: 4px;
-
 }
-
 
 .claim-type {
-
   font-weight: normal;
-
   margin-right: 7px;
-
 }
-
 
 .depends {
-
   font-weight: normal;
-
   font-size: 9pt;
-
   margin-left: 6px;
-
 }
-
 
 .claim-text {
-
   white-space: pre-wrap;
-
   overflow-wrap: anywhere;
-
 }
-
-
-/* ============================================================
-   DRAWINGS
-   ============================================================ */
 
 .drawing {
-
   text-align: center;
-
-  margin:
-    0
-    0
-    18px
-    0;
-
+  margin: 0 0 18px 0;
   page-break-inside: avoid;
-
 }
-
 
 .drawing-image {
-
   display: block;
-
   width: auto;
-
   height: auto;
-
   max-width: 155mm;
-
   max-height: 185mm;
-
-  margin:
-    0
-    auto
-    6px
-    auto;
-
+  margin: 0 auto 6px auto;
   object-fit: contain;
-
 }
-
 
 .image-missing {
-
   width: 150mm;
-
   height: 70mm;
-
-  margin:
-    0
-    auto
-    8px
-    auto;
-
-  border:
-    1px dashed
-    #777777;
-
+  margin: 0 auto 8px auto;
+  border: 1px dashed #777777;
   display: flex;
-
   align-items: center;
-
   justify-content: center;
-
   color: #666666;
-
-  font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
-
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 9pt;
-
 }
-
 
 .figure-caption {
-
   font-size: 9.5pt;
-
   line-height: 1.4;
-
 }
-
 
 .reference {
-
   font-size: 8.5pt;
-
   color: #444444;
-
   margin-top: 2px;
-
 }
-
-
-/* ============================================================
-   MISC
-   ============================================================ */
 
 .muted {
-
   color: #555555;
-
 }
-
 
 .small {
-
   font-size: 9pt;
-
 }
-
-
-/* ============================================================
-   SIGNATURE
-   ============================================================ */
 
 .signature-table {
-
   width: 100%;
-
-  border-collapse:
-    collapse;
-
+  border-collapse: collapse;
   margin-top: 22mm;
-
 }
-
 
 .signature-table td {
-
   width: 50%;
-
-  padding:
-    4px
-    15px;
-
+  padding: 4px 15px;
   vertical-align: top;
-
   text-align: center;
-
 }
-
 
 .signature-line {
-
-  border-top:
-    1px solid
-    #222222;
-
-  margin:
-    16mm
-    auto
-    4px
-    auto;
-
+  border-top: 1px solid #222222;
+  margin: 16mm auto 4px auto;
   width: 55mm;
-
 }
-
-
-/* ============================================================
-   PAGE BREAKS
-   ============================================================ */
 
 h2,
 .field-label,
 .claim-heading,
 .figure-caption {
-
   page-break-after: avoid;
-
 }
 
 </style>
-
 </head>
-
 
 <body>
 
-
 <div class="document">
 
-
-<!-- =========================================================
-     COVER PAGE
-     ========================================================= -->
+<!-- COVER PAGE -->
 
 <div class="cover">
 
-
   <div class="institution-header">
-
     ${logoMarkup}
 
     <div class="institution-subtitle">
       PATENT APPLICATION DOCUMENT
     </div>
-
   </div>
 
-
   <div class="title-block">
-
 
     <div class="document-heading">
       Patent Application Specification
     </div>
 
-
     <div class="patent-title">
       ${escapeHtml(title)}
     </div>
 
-
     <div class="title-rule"></div>
-
 
     <table class="cover-details">
 
-
       <tr>
-
-        <td>
-          Applicant
-        </td>
-
-        <td>
-          ${escapeHtml(applicantName)}
-        </td>
-
+        <td>Applicant</td>
+        <td>${escapeHtml(applicantName)}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Applicant Email
-        </td>
-
-        <td>
-          ${escapeHtml(applicantEmail)}
-        </td>
-
+        <td>Applicant Email</td>
+        <td>${escapeHtml(applicantEmail)}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Patent Type
-        </td>
-
-        <td>
-          ${text(patent?.patentType)}
-        </td>
-
+        <td>Patent Type</td>
+        <td>${text(patent?.patentType)}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Classification
-        </td>
-
-        <td>
-          ${text(patent?.classification)}
-        </td>
-
+        <td>Classification</td>
+        <td>${text(patent?.classification)}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Status
-        </td>
-
-        <td>
-          ${text(
-            patent?.status,
-            "Draft"
-          )}
-        </td>
-
+        <td>Status</td>
+        <td>${text(patent?.status, "Draft")}</td>
       </tr>
-
 
     </table>
 
-
   </div>
-
 
   <div class="cover-note">
-
-    Prepared through the
-    Inhouse Patent Filing System
-
+    Prepared through the Inhouse Patent Filing System
   </div>
-
 
 </div>
 
 
-<!-- =========================================================
-     MAIN DOCUMENT HEADER
-     ========================================================= -->
+<!-- MAIN DOCUMENT HEADER -->
 
 <div class="institution-header">
 
@@ -1403,9 +779,7 @@ h2,
 </div>
 
 
-<!-- =========================================================
-     1. PATENT INFORMATION
-     ========================================================= -->
+<!-- 1. PATENT INFORMATION -->
 
 ${section(
   "1. Patent Information",
@@ -1413,158 +787,55 @@ ${section(
 
     <table class="metadata">
 
-
       <tr>
-
-        <td>
-          Title of the Invention
-        </td>
-
-        <td>
-          ${text(
-            title,
-            "Untitled Patent Application"
-          )}
-        </td>
-
+        <td>Title of the Invention</td>
+        <td>${text(title, "Untitled Patent Application")}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Patent Classification
-        </td>
-
-        <td>
-          ${text(
-            patent?.classification
-          )}
-        </td>
-
+        <td>Patent Classification</td>
+        <td>${text(patent?.classification)}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Patent Type
-        </td>
-
-        <td>
-          ${text(
-            patent?.patentType
-          )}
-        </td>
-
+        <td>Patent Type</td>
+        <td>${text(patent?.patentType)}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Status
-        </td>
-
-        <td>
-          ${text(
-            patent?.status,
-            "Draft"
-          )}
-        </td>
-
+        <td>Status</td>
+        <td>${text(patent?.status, "Draft")}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Applicant
-        </td>
-
-        <td>
-          ${escapeHtml(
-            applicantName
-          )}
-        </td>
-
+        <td>Applicant</td>
+        <td>${escapeHtml(applicantName)}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Applicant Email
-        </td>
-
-        <td>
-          ${escapeHtml(
-            applicantEmail
-          )}
-        </td>
-
+        <td>Applicant Email</td>
+        <td>${escapeHtml(applicantEmail)}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Inventors
-        </td>
-
-        <td>
-          ${arrayText(
-            patent?.inventors
-          )}
-        </td>
-
+        <td>Inventors</td>
+        <td>${arrayText(patent?.inventors)}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Guide
-        </td>
-
-        <td>
-          ${text(
-            patent?.guideName
-          )}
-        </td>
-
+        <td>Guide</td>
+        <td>${text(patent?.guideName)}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Guide Email
-        </td>
-
-        <td>
-          ${text(
-            patent?.guideEmail
-          )}
-        </td>
-
+        <td>Guide Email</td>
+        <td>${text(patent?.guideEmail)}</td>
       </tr>
 
-
       <tr>
-
-        <td>
-          Keywords
-        </td>
-
-        <td>
-          ${arrayText(
-            patent?.keywords
-          )}
-        </td>
-
+        <td>Keywords</td>
+        <td>${arrayText(patent?.keywords)}</td>
       </tr>
-
 
     </table>
 
@@ -1572,57 +843,42 @@ ${section(
 )}
 
 
-<!-- =========================================================
-     2. ABSTRACT
-     ========================================================= -->
+<!-- 2. ABSTRACT -->
 
 ${section(
   "2. Abstract",
   `
     <div class="field-value">
-      ${text(
-        patent?.abstract
-      )}
+      ${text(patent?.abstract)}
     </div>
   `
 )}
 
 
-<!-- =========================================================
-     3. FIELD OF INVENTION
-     ========================================================= -->
+<!-- 3. FIELD OF INVENTION -->
 
 ${section(
   "3. Field of Invention",
   `
     <div class="field-value">
-      ${text(
-        patent?.field
-      )}
+      ${text(patent?.field)}
     </div>
   `
 )}
 
 
-<!-- =========================================================
-     4. BACKGROUND
-     ========================================================= -->
+<!-- 4. BACKGROUND -->
 
 ${section(
   "4. Background of the Invention",
   `
 
-    ${paragraph(
-      "4.1 Prior Art",
-      patent?.backgroundPriorArt
-    )}
-
+    ${paragraph("4.1 Prior Art", patent?.backgroundPriorArt)}
 
     ${paragraph(
       "4.2 Problems in Existing Systems",
       patent?.backgroundProblems
     )}
-
 
     ${paragraph(
       "4.3 Need for the Invention",
@@ -1633,9 +889,7 @@ ${section(
 )}
 
 
-<!-- =========================================================
-     5. SUMMARY
-     ========================================================= -->
+<!-- 5. SUMMARY -->
 
 ${section(
   "5. Summary of the Invention",
@@ -1646,24 +900,20 @@ ${section(
       patent?.summaryProblem
     )}
 
-
     ${paragraph(
       "5.2 Proposed Solution",
       patent?.summarySolution
     )}
-
 
     ${paragraph(
       "5.3 Components",
       patent?.summaryComponents
     )}
 
-
     ${paragraph(
       "5.4 Operation",
       patent?.summaryOperation
     )}
-
 
     ${paragraph(
       "5.5 Advantages",
@@ -1674,9 +924,7 @@ ${section(
 )}
 
 
-<!-- =========================================================
-     6. DETAILED DESCRIPTION
-     ========================================================= -->
+<!-- 6. DETAILED DESCRIPTION -->
 
 ${section(
   "6. Detailed Description",
@@ -1687,24 +935,20 @@ ${section(
       patent?.detailedOverview
     )}
 
-
     ${paragraph(
       "6.2 Detailed Architecture",
       patent?.detailedArchitecture
     )}
-
 
     ${paragraph(
       "6.3 Detailed Operation",
       patent?.detailedOperation
     )}
 
-
     ${paragraph(
       "6.4 Detailed Implementation",
       patent?.detailedImplementation
     )}
-
 
     ${paragraph(
       "6.5 Embodiments",
@@ -1712,15 +956,11 @@ ${section(
     )}
 
   `,
-  {
-    pageBreak: true
-  }
+  { pageBreak: true }
 )}
 
 
-<!-- =========================================================
-     7. CLAIMS
-     ========================================================= -->
+<!-- 7. CLAIMS -->
 
 ${section(
   "7. Claims",
@@ -1730,120 +970,83 @@ ${section(
       The invention is claimed as follows:
     </div>
 
-
-    ${buildClaims(
-      patent?.claims
-    )}
+    ${buildClaims(patent?.claims)}
 
   `
 )}
 
 
-<!-- =========================================================
-     8. DRAWINGS
-     ========================================================= -->
+<!-- 8. DRAWINGS -->
 
 ${section(
   "8. Technical Drawings",
-  buildDrawings(
-    patent?.drawings
-  ),
-  {
-    pageBreak: true
-  }
+  buildDrawings(patent?.drawings),
+  { pageBreak: true }
 )}
 
 
-<!-- =========================================================
-     9. ADDITIONAL INFORMATION
-     ========================================================= -->
+<!-- 9. ADDITIONAL INFORMATION -->
 
 ${section(
   "9. Additional Information",
   `
 
-    ${paragraph(
-      "Review Comment",
-      patent?.reviewComment
-    )}
+    ${paragraph("Review Comment", patent?.reviewComment)}
 
+    ${paragraph("Created", patent?.createdAt)}
 
-    ${paragraph(
-      "Created",
-      patent?.createdAt
-    )}
+    ${paragraph("Submitted", patent?.submittedAt)}
 
-
-    ${paragraph(
-      "Submitted",
-      patent?.submittedAt
-    )}
-
-
-    ${paragraph(
-      "Last Updated",
-      patent?.updatedAt
-    )}
+    ${paragraph("Last Updated", patent?.updatedAt)}
 
   `
 )}
 
 
-<!-- =========================================================
-     SIGNATURES
-     ========================================================= -->
+<!-- SIGNATURES -->
 
 <table class="signature-table">
 
   <tr>
 
-
     <td>
-
       <div class="signature-line"></div>
-
       Applicant / Inventor
-
     </td>
-
 
     <td>
-
       <div class="signature-line"></div>
-
       Guide / Faculty
-
     </td>
-
 
   </tr>
 
 </table>
 
-
 </div>
 
-
 </body>
-
 </html>
 `;
 }
 
 
 /* ============================================================
-   FIND CHROME
-   ============================================================ */
+   FIND CHROME EXECUTABLE
+============================================================ */
 
 async function findChromeExecutable() {
+
   const candidates = [
     process.env.PUPPETEER_EXECUTABLE_PATH,
     process.env.CHROME_PATH
   ].filter(Boolean);
 
-  // Check explicitly configured Chrome paths.
+  // First check manually configured paths.
   for (const candidate of candidates) {
+
     try {
+
       if (fs.existsSync(candidate)) {
         console.log("Chrome found at:", candidate);
         return candidate;
@@ -1853,17 +1056,21 @@ async function findChromeExecutable() {
         "Configured Chrome path does not exist:",
         candidate
       );
+
     } catch (error) {
+
       console.warn(
         "Unable to check Chrome path:",
         candidate,
         error.message
       );
+
     }
   }
 
-  // Get the actual Chrome path from Puppeteer.
+  // Next check Puppeteer's managed Chrome.
   try {
+
     const managedPath = await puppeteer.executablePath();
 
     console.log(
@@ -1875,449 +1082,306 @@ async function findChromeExecutable() {
       managedPath &&
       fs.existsSync(managedPath)
     ) {
+
       console.log(
         "Puppeteer-managed Chrome found:",
         managedPath
       );
 
       return managedPath;
+
     }
 
     console.error(
       "Chrome executable does not exist:",
       managedPath
     );
+
   } catch (error) {
+
     console.error(
       "Unable to get Puppeteer Chrome path:",
       error.message
     );
+
+  }
+
+  // Check common Linux Chrome locations as a fallback.
+  const systemPaths = [
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser"
+  ];
+
+  for (const chromePath of systemPaths) {
+
+    if (fs.existsSync(chromePath)) {
+      console.log("System Chrome found:", chromePath);
+      return chromePath;
+    }
+
   }
 
   throw new Error(
-    "Chrome executable not found. Check Puppeteer Chrome installation on Render."
+    "Chrome executable not found. Install Chrome during Render build using: npx puppeteer browsers install chrome"
   );
 }
 
 
 /* ============================================================
    GENERATE PDF
-   ============================================================ */
+============================================================ */
 
-async function generate(
-  patent
-) {
+async function generate(patent) {
 
-  /*
-   * Validate patent object
-   */
-
-  if (
-    !patent ||
-    typeof patent !== "object"
-  ) {
-
+  if (!patent || typeof patent !== "object") {
     throw new Error(
       "Patent data is required for PDF generation."
     );
-
   }
 
-
   let browser = null;
-
 
   try {
 
     /*
-     * --------------------------------------------------------
-     * SRMS LOGO
-     * --------------------------------------------------------
-     *
-     * __dirname:
-     *
-     * backend/src/utils
-     *
-     * ../../assets:
-     *
-     * backend/assets
-     *
-     */
+    ----------------------------------------------------------
+    SRMS LOGO
+    ----------------------------------------------------------
+    */
 
-    const logoPath =
-      path.resolve(
-        __dirname,
-        "../../assets/srms-logo.png"
-      );
-
-
-    console.log(
-      "SRMS logo path:",
-      logoPath
+    const logoPath = path.resolve(
+      __dirname,
+      "../../assets/srms-logo.png"
     );
 
+    console.log("SRMS logo path:", logoPath);
 
-    const logoData =
-      fileToDataUrl(
-        logoPath
-      );
+    const logoData = fileToDataUrl(logoPath);
 
-
-    if (!logoData) {
-
-      console.warn(
-        "SRMS logo was not found."
-      );
-
-      console.warn(
-        "Expected location:",
-        logoPath
-      );
-
+    if (logoData) {
+      console.log("SRMS logo loaded successfully.");
     } else {
-
-      console.log(
-        "SRMS logo loaded successfully."
+      console.warn(
+        "SRMS logo was not found:",
+        logoPath
       );
-
     }
 
 
     /*
-     * --------------------------------------------------------
-     * CHROME
-     * --------------------------------------------------------
-     */
+    ----------------------------------------------------------
+    CHROME
+    ----------------------------------------------------------
+    */
 
-    const executablePath =
-      await findChromeExecutable();
-
+    const executablePath = await findChromeExecutable();
 
     console.log(
-      "Puppeteer Chrome executable:",
+      "Using Chrome executable:",
       executablePath
     );
 
 
     /*
-     * --------------------------------------------------------
-     * PUPPETEER LAUNCH
-     * --------------------------------------------------------
-     */
+    ----------------------------------------------------------
+    LAUNCH PUPPETEER
+    ----------------------------------------------------------
+    */
 
-    const launchOptions = {
+    browser = await puppeteer.launch({
+
+      executablePath,
 
       headless: true,
 
       protocolTimeout: 120000,
 
       args: [
-
         "--no-sandbox",
-
         "--disable-setuid-sandbox",
-
         "--disable-dev-shm-usage",
-
         "--disable-gpu",
-
-        "--disable-software-rasterizer"
-
+        "--disable-software-rasterizer",
+        "--disable-extensions",
+        "--no-zygote"
       ]
-
-    };
-
-
-    if (executablePath) {
-
-      launchOptions.executablePath =
-        executablePath;
-
-    }
-
-
-    browser =
-      await puppeteer.launch(
-        launchOptions
-      );
-
-
-    /*
-     * --------------------------------------------------------
-     * PAGE
-     * --------------------------------------------------------
-     */
-
-    const page =
-      await browser.newPage();
-
-
-    await page.setViewport({
-
-      width: 1240,
-
-      height: 1754,
-
-      deviceScaleFactor: 1
 
     });
 
 
     /*
-     * --------------------------------------------------------
-     * HTML
-     * --------------------------------------------------------
-     */
+    ----------------------------------------------------------
+    CREATE PAGE
+    ----------------------------------------------------------
+    */
 
-    const html =
-      buildHtml(
-        patent,
-        logoData
-      );
+    const page = await browser.newPage();
 
+    await page.setViewport({
+      width: 1240,
+      height: 1754,
+      deviceScaleFactor: 1
+    });
+
+
+    /*
+    ----------------------------------------------------------
+    BUILD HTML
+    ----------------------------------------------------------
+    */
+
+    const html = buildHtml(
+      patent,
+      logoData
+    );
 
     if (
       typeof html !== "string" ||
       html.length < 1000
     ) {
-
       throw new Error(
         "Generated patent HTML is empty or invalid."
       );
-
     }
 
 
     /*
-     * --------------------------------------------------------
-     * LOAD HTML
-     * --------------------------------------------------------
-     */
+    ----------------------------------------------------------
+    LOAD HTML
+    ----------------------------------------------------------
+    */
 
-    await page.setContent(
-      html,
-      {
+    await page.setContent(html, {
+      waitUntil: "load",
+      timeout: 120000
+    });
 
-        waitUntil: "load",
 
-        timeout: 120000
+    /*
+    ----------------------------------------------------------
+    WAIT FOR IMAGES AND FONTS
+    ----------------------------------------------------------
+    */
 
+    await page.evaluate(async () => {
+
+      const images = Array.from(document.images);
+
+      await Promise.all(
+        images.map((image) => {
+
+          if (image.complete) {
+            return Promise.resolve();
+          }
+
+          return new Promise((resolve) => {
+
+            const done = () => resolve();
+
+            image.addEventListener(
+              "load",
+              done,
+              { once: true }
+            );
+
+            image.addEventListener(
+              "error",
+              done,
+              { once: true }
+            );
+
+          });
+
+        })
+      );
+
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
       }
-    );
+
+    });
 
 
     /*
-     * --------------------------------------------------------
-     * WAIT FOR IMAGES + FONTS
-     * --------------------------------------------------------
-     */
+    ----------------------------------------------------------
+    PRINT PDF
+    ----------------------------------------------------------
+    */
 
-    await page.evaluate(
-      async () => {
+    const pdf = await page.pdf({
 
-        const images =
-          Array.from(
-            document.images
-          );
+      format: "A4",
 
+      printBackground: true,
 
-        await Promise.all(
+      preferCSSPageSize: true,
 
-          images.map(
-            (image) => {
+      displayHeaderFooter: false,
 
-              if (
-                image.complete
-              ) {
+      margin: {
+        top: "25mm",
+        right: "18mm",
+        bottom: "22mm",
+        left: "18mm"
+      },
 
-                return Promise.resolve();
+      timeout: 120000
 
-              }
-
-
-              return new Promise(
-                (resolve) => {
-
-                  const done =
-                    () => resolve();
-
-
-                  image.addEventListener(
-                    "load",
-                    done,
-                    {
-                      once: true
-                    }
-                  );
-
-
-                  image.addEventListener(
-                    "error",
-                    done,
-                    {
-                      once: true
-                    }
-                  );
-
-                }
-              );
-
-            }
-          )
-
-        );
-
-
-        /*
-         * Fonts
-         */
-
-        if (
-          document.fonts &&
-          document.fonts.ready
-        ) {
-
-          await document.fonts.ready;
-
-        }
-
-      }
-    );
+    });
 
 
     /*
-     * Give Chrome a short time
-     * to finish rendering.
-     */
+    ----------------------------------------------------------
+    VALIDATE PDF
+    ----------------------------------------------------------
+    */
 
-    await new Promise(
-      (resolve) =>
-        setTimeout(
-          resolve,
-          300
-        )
-    );
+    const buffer = Buffer.from(pdf);
 
-
-    /*
-     * --------------------------------------------------------
-     * PDF
-     * --------------------------------------------------------
-     */
-
-    const pdf =
-      await page.pdf({
-
-        format: "A4",
-
-        printBackground: true,
-
-        preferCSSPageSize: true,
-
-        displayHeaderFooter: false,
-
-        margin: {
-
-          top: "25mm",
-
-          right: "18mm",
-
-          bottom: "22mm",
-
-          left: "18mm"
-
-        },
-
-        timeout: 120000
-
-      });
-
-
-    /*
-     * --------------------------------------------------------
-     * BUFFER
-     * --------------------------------------------------------
-     */
-
-    const buffer =
-      Buffer.from(pdf);
-
-
-    /*
-     * --------------------------------------------------------
-     * VALIDATE
-     * --------------------------------------------------------
-     */
-
-    if (
-      !buffer.length
-    ) {
-
+    if (!buffer.length) {
       throw new Error(
         "Puppeteer generated a zero-byte PDF."
       );
-
     }
 
+    const signature = buffer
+      .subarray(0, 5)
+      .toString("ascii");
 
-    /*
-     * PDF signature
-     */
-
-    const signature =
-      buffer
-        .subarray(
-          0,
-          5
-        )
-        .toString(
-          "ascii"
-        );
-
-
-    if (
-      signature !== "%PDF-"
-    ) {
-
+    if (signature !== "%PDF-") {
       throw new Error(
         "Puppeteer returned invalid PDF data."
       );
-
     }
 
-
     console.log(
-      `Puppeteer PDF size: ${buffer.length} bytes`
+      `Patent PDF generated successfully. Size: ${buffer.length} bytes`
     );
 
-
     return buffer;
-
 
   } catch (error) {
 
     console.error(
-      "PDF utility error:",
+      "Patent PDF generation failed:",
       error
     );
 
     throw error;
 
-
   } finally {
-
-
-    /*
-     * --------------------------------------------------------
-     * CLOSE BROWSER
-     * --------------------------------------------------------
-     */
 
     if (browser) {
 
       try {
 
         await browser.close();
+
+        console.log(
+          "Puppeteer browser closed successfully."
+        );
 
       } catch (closeError) {
 
@@ -2337,10 +1401,8 @@ async function generate(
 
 /* ============================================================
    EXPORT
-   ============================================================ */
+============================================================ */
 
 module.exports = {
-
   generate
-
 };
